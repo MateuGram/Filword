@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Филворд - найди слова</title>
+    <style>
+        * {
+            user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            background: #1a472a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+        }
+        .game-container {
+            background: #2c2c2c;
+            padding: 15px;
+            border-radius: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            max-width: 95vw;
+        }
+        .grid {
+            background: #1e1e2e;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 0 0 3px #ffaa44;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            cursor: pointer;
+        }
+        .word-list {
+            background: #1e1e2e;
+            border-radius: 15px;
+            padding: 15px;
+            min-width: 150px;
+            box-shadow: 0 0 0 2px #ffaa44;
+        }
+        .word-list h3 {
+            margin: 0 0 10px 0;
+            color: #ffdd99;
+            text-align: center;
+        }
+        .word-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .word-list li {
+            color: #ffdd99;
+            font-size: 1.1rem;
+            margin: 8px 0;
+            padding: 4px 8px;
+            border-radius: 20px;
+            transition: 0.1s;
+        }
+        .word-list li.found {
+            text-decoration: line-through;
+            color: #88ff88;
+            background: #2a6b2a;
+        }
+        .info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            color: #ffdd99;
+            font-weight: bold;
+        }
+        button {
+            background: #ffaa44;
+            border: none;
+            font-size: 1rem;
+            font-weight: bold;
+            padding: 6px 14px;
+            border-radius: 40px;
+            box-shadow: 0 3px 0 #a05e15;
+            transition: 0.05s linear;
+            cursor: pointer;
+            font-family: monospace;
+            margin-top: 10px;
+        }
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #a05e15;
+        }
+        .message {
+            text-align: center;
+            margin-top: 10px;
+            color: #ffaa66;
+        }
+        @media (max-width: 700px) {
+            .word-list li { font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <div class="grid">
+        <canvas id="wordCanvas" width="400" height="400"></canvas>
+        <div class="info">
+            <span>🔍 Найдено: <span id="foundCount">0</span>/<span id="totalWords"></span></span>
+            <button id="resetBtn">🔄 Сбросить</button>
+        </div>
+        <div id="messageBox" class="message"></div>
+    </div>
+    <div class="word-list">
+        <h3>📜 Слова</h3>
+        <ul id="wordList"></ul>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ---------- НАСТРОЙКИ ----------
+        const SIZE = 10;          // 10x10
+        const CELL_SIZE = 40;     // 400/10
+        const canvas = document.getElementById('wordCanvas');
+        const ctx = canvas.getContext('2d');
+        const foundSpan = document.getElementById('foundCount');
+        const totalSpan = document.getElementById('totalWords');
+        const wordListUl = document.getElementById('wordList');
+        const messageDiv = document.getElementById('messageBox');
+
+        // Словарь для филворда (слова могут быть только прямыми линиями)
+        const WORDS = [
+            "КОТ", "ПЁС", "ЛЕС", "ГОРА", "РЕКА", "МОРЕ", "ДОМ", "САД", "ЛУГ", "ПОЛЕ",
+            "СОЛНЦЕ", "ЗВЕЗДА", "ОБЛАКО", "ВЕТЕР", "ДОЖДЬ"
+        ];
+        // Генерация поля (случайные буквы, но слова вписаны вручную для простоты)
+        // Создадим поле, где все слова размещены по горизонтали/вертикали/диагонали.
+        // Для демонстрации сделаем предопределённое поле с заложенными словами.
+        // Это классический филворд: слова могут быть расположены в 8 направлениях.
+        // Реализуем генератор, который размещает слова на поле, а остальное заполняет случайными буквами.
+        
+        let grid = Array(SIZE).fill().map(() => Array(SIZE).fill(''));
+        let wordsData = [];   // { word, row, col, dx, dy, found }
+        let foundWords = 0;
+        let selectedStart = null; // { row, col }
+        
+        // Направления: 8 соседей
+        const dirs = [
+            [-1, -1], [-1, 0], [-1, 1],
+            [0, -1],           [0, 1],
+            [1, -1],  [1, 0],  [1, 1]
+        ];
+        
+        // Помещаем слова на поле (простой алгоритм)
+        function placeWord(word, row, col, dx, dy) {
+            for (let i = 0; i < word.length; i++) {
+                const r = row + i * dx;
+                const c = col + i * dy;
+                if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return false;
+                if (grid[r][c] !== '' && grid[r][c] !== word[i]) return false;
+            }
+            for (let i = 0; i < word.length; i++) {
+                const r = row + i * dx;
+                const c = col + i * dy;
+                grid[r][c] = word[i];
+            }
+            return true;
+        }
+        
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+        
+        function generateGrid() {
+            // Очищаем сетку
+            for (let i = 0; i < SIZE; i++)
+                for (let j = 0; j < SIZE; j++)
+                    grid[i][j] = '';
+            
+            const wordsCopy = [...WORDS];
+            shuffleArray(wordsCopy);
+            wordsData = [];
+            
+            for (let w of wordsCopy) {
+                let placed = false;
+                // Пытаемся 200 раз случайно разместить
+                for (let attempt = 0; attempt < 200; attempt++) {
+                    const dir = dirs[Math.floor(Math.random() * dirs.length)];
+                    const maxRow = SIZE - (w.length - 1) * Math.abs(dir[0]);
+                    const maxCol = SIZE - (w.length - 1) * Math.abs(dir[1]);
+                    if (maxRow <= 0 || maxCol <= 0) continue;
+                    const row = Math.floor(Math.random() * maxRow);
+                    const col = Math.floor(Math.random() * maxCol);
+                    if (placeWord(w, row, col, dir[0], dir[1])) {
+                        wordsData.push({ word: w, row, col, dx: dir[0], dy: dir[1], found: false });
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) {
+                    // Если не удалось разместить, кладём вручную по горизонтали (запасной вариант)
+                    for (let r = 0; r < SIZE; r++) {
+                        for (let c = 0; c <= SIZE - w.length; c++) {
+                            if (placeWord(w, r, c, 0, 1)) {
+                                wordsData.push({ word: w, row: r, col: c, dx: 0, dy: 1, found: false });
+                                placed = true;
+                                break;
+                            }
+                        }
+                        if (placed) break;
+                    }
+                }
+            }
+            // Заполняем пустые клетки случайными буквами (русские)
+            const russianLetters = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
+            for (let i = 0; i < SIZE; i++) {
+                for (let j = 0; j < SIZE; j++) {
+                    if (grid[i][j] === '') {
+                        grid[i][j] = russianLetters[Math.floor(Math.random() * russianLetters.length)];
+                    }
+                }
+            }
+        }
+        
+        // Проверка, является ли слово найденным (по линии от start до end)
+        function checkWord(startRow, startCol, endRow, endCol) {
+            const dr = Math.sign(endRow - startRow);
+            const dc = Math.sign(endCol - startCol);
+            if (dr === 0 && dc === 0) return null;
+            // Длина линии
+            const len = Math.max(Math.abs(endRow - startRow), Math.abs(endCol - startCol)) + 1;
+            let word = '';
+            let r = startRow, c = startCol;
+            for (let i = 0; i < len; i++) {
+                if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return null;
+                word += grid[r][c];
+                r += dr;
+                c += dc;
+            }
+            // Проверяем, есть ли такое слово в неразгаданных
+            for (let w of wordsData) {
+                if (!w.found && w.word === word) {
+                    // Дополнительно проверим, что направление совпадает с тем, как слово лежит в сетке (не обязательно, но хорошо)
+                    // Но достаточно, что буквы совпали.
+                    return w;
+                }
+            }
+            return null;
+        }
+        
+        function markWordFound(wordObj) {
+            if (wordObj.found) return;
+            wordObj.found = true;
+            foundWords++;
+            foundSpan.innerText = foundWords;
+            // Обновляем список слов
+            const items = document.querySelectorAll('#wordList li');
+            for (let li of items) {
+                if (li.innerText === wordObj.word) {
+                    li.classList.add('found');
+                    break;
+                }
+            }
+            messageDiv.innerText = `✅ Найдено слово: ${wordObj.word}!`;
+            setTimeout(() => { if (messageDiv.innerText.includes('Найдено')) messageDiv.innerText = ''; }, 1500);
+            drawGrid();
+            if (foundWords === wordsData.length) {
+                messageDiv.innerText = '🎉 ПОБЕДА! Все слова найдены! 🎉';
+            }
+        }
+        
+        // Обработка клика
+        function handleCanvasClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+                e.preventDefault();
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            const canvasX = (clientX - rect.left) * scaleX;
+            const canvasY = (clientY - rect.top) * scaleY;
+            const col = Math.floor(canvasX / CELL_SIZE);
+            const row = Math.floor(canvasY / CELL_SIZE);
+            if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) return;
+            
+            if (selectedStart === null) {
+                selectedStart = { row, col };
+                drawGrid(true, row, col);
+                messageDiv.innerText = 'Выберите конечную букву...';
+            } else {
+                const start = selectedStart;
+                selectedStart = null;
+                const wordObj = checkWord(start.row, start.col, row, col);
+                if (wordObj) {
+                    markWordFound(wordObj);
+                } else {
+                    messageDiv.innerText = '❌ Слово не найдено! Попробуйте ещё.';
+                    setTimeout(() => { if (messageDiv.innerText.includes('не найдено')) messageDiv.innerText = ''; }, 1500);
+                }
+                drawGrid();
+            }
+        }
+        
+        // Отрисовка сетки
+        function drawGrid(highlightStart = false, startRow = -1, startCol = -1) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < SIZE; i++) {
+                for (let j = 0; j < SIZE; j++) {
+                    const x = j * CELL_SIZE;
+                    const y = i * CELL_SIZE;
+                    ctx.fillStyle = '#2a2a3a';
+                    ctx.fillRect(x, y, CELL_SIZE-1, CELL_SIZE-1);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = `bold ${CELL_SIZE * 0.5}px monospace`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(grid[i][j], x + CELL_SIZE/2, y + CELL_SIZE/2);
+                    if (highlightStart && i === startRow && j === startCol) {
+                        ctx.strokeStyle = '#ffcc44';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(x+1, y+1, CELL_SIZE-3, CELL_SIZE-3);
+                    }
+                }
+            }
+        }
+        
+        function resetGame() {
+            generateGrid();
+            wordsData.forEach(w => w.found = false);
+            foundWords = 0;
+            foundSpan.innerText = foundWords;
+            selectedStart = null;
+            // Обновить список слов в UI
+            wordListUl.innerHTML = '';
+            for (let w of wordsData) {
+                const li = document.createElement('li');
+                li.innerText = w.word;
+                wordListUl.appendChild(li);
+            }
+            totalSpan.innerText = wordsData.length;
+            drawGrid();
+            messageDiv.innerText = 'Игра сброшена. Нажимайте на первую и последнюю букву слова.';
+            setTimeout(() => messageDiv.innerText = '', 2000);
+        }
+        
+        // Инициализация
+        generateGrid();
+        resetGame(); // заполнит список и отрисует
+        
+        canvas.addEventListener('click', handleCanvasClick);
+        canvas.addEventListener('touchstart', handleCanvasClick);
+        document.getElementById('resetBtn').addEventListener('click', resetGame);
+    })();
+</script>
+</body>
+</html>
