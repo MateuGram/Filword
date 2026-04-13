@@ -120,7 +120,115 @@
         <ul id="wordList"></ul>
     </div>
 </div>
+<!-- Кнопка и панель с играми (все 6 игр) -->
+<div style="display: flex; justify-content: center; margin: 20px auto 10px auto;">
+    <button id="moreGamesBtn" style="
+        background: #ffaa44;
+        border: none;
+        font-size: 1.3rem;
+        font-weight: bold;
+        padding: 10px 25px;
+        border-radius: 50px;
+        box-shadow: 0 4px 0 #a05e15;
+        transition: 0.05s linear;
+        cursor: pointer;
+        touch-action: manipulation;
+        color: #2c2c2c;
+        font-family: 'Courier New', monospace;
+    ">🎮 Ещё наши игры</button>
+</div>
 
+<div id="gamesPanel" style="
+    display: none;
+    background: #2c2c2c;
+    border-radius: 20px;
+    padding: 15px;
+    margin: 10px auto;
+    max-width: 350px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+">
+    <h3 style="color: #ffdd99; margin-top: 0; font-family: monospace;">Выбери игру</h3>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        <a href="https://mateugram.github.io/AutoM" target="_blank" style="
+            background: #ffaa44;
+            color: #2c2c2c;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 1.1rem;
+            transition: 0.1s;
+        ">🏎️ Гонки</a>
+        <a href="https://mateugram.github.io/Arkanoid" target="_blank" style="
+            background: #ffaa44;
+            color: #2c2c2c;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 1.1rem;
+            transition: 0.1s;
+        ">🧱 Арканоид</a>
+        <a href="https://mateugram.github.io/15" target="_blank" style="
+            background: #ffaa44;
+            color: #2c2c2c;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 1.1rem;
+            transition: 0.1s;
+        ">🧩 Пятнашки</a>
+        <a href="https://mateugram.github.io/labyrinth" target="_blank" style="
+            background: #ffaa44;
+            color: #2c2c2c;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 1.1rem;
+            transition: 0.1s;
+        ">🌀 Лабиринт</a>
+        <a href="https://mateugram.github.io/water" target="_blank" style="
+            background: #ffaa44;
+            color: #2c2c2c;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 1.1rem;
+            transition: 0.1s;
+        ">💧 Сортировка воды</a>
+        <a href="https://mateugram.github.io/filword" target="_blank" style="
+            background: #ffaa44;
+            color: #2c2c2c;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 1.1rem;
+            transition: 0.1s;
+        ">🔤 Филворд</a>
+    </div>
+</div>
+
+<script>
+    document.getElementById('moreGamesBtn').addEventListener('click', function() {
+        var panel = document.getElementById('gamesPanel');
+        if (panel.style.display === 'none' || panel.style.display === '') {
+            panel.style.display = 'block';
+        } else {
+            panel.style.display = 'none';
+        }
+    });
+</script>
 <script>
     (function(){
         // ---------- НАСТРОЙКИ ----------
